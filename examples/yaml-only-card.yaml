@@ -1,0 +1,197 @@
+# OpenCARWINGS – YAML-only kártya (csak beépített kártyák, nem kell telepíteni semmit)
+#
+# HASZNÁLAT:
+#   1. Irányítópult → Szerkesztés → + Kártya hozzáadása → "Kézi" (Manual)
+#   2. Másold be ezt az egészet.
+#   3. Cseréld ki a "leaf" szót az autód becenevére (kisbetűvel, ahogy az
+#      entitás-azonosítókban szerepel). Pl. ha az autód "Kis Leaf", akkor "kis_leaf".
+#      Szerkesztőben: Keresés és csere  leaf_  →  kis_leaf_   és   _for_leaf  →  _for_kis_leaf
+#
+type: vertical-stack
+cards:
+  # --- Fejléc: állapot -------------------------------------------------------
+  - type: tile
+    entity: sensor.leaf_status
+    name: Leaf
+    icon: mdi:car-electric
+    vertical: false
+    tap_action:
+      action: more-info
+
+  # --- Akku + hatótáv --------------------------------------------------------
+  - type: grid
+    columns: 2
+    square: false
+    cards:
+      - type: gauge
+        entity: sensor.leaf_state_of_charge
+        name: Töltöttség
+        min: 0
+        max: 100
+        needle: false
+        severity:
+          red: 0
+          yellow: 15
+          green: 30
+      - type: entities
+        show_header_toggle: false
+        state_color: true
+        entities:
+          - entity: sensor.leaf_range_a_c_off
+            name: Hatótáv
+            icon: mdi:map-marker-distance
+          - entity: sensor.leaf_range_a_c_on
+            name: Klímával
+            icon: mdi:air-conditioner
+          - entity: sensor.leaf_charge_cable
+            name: Kábel
+            icon: mdi:power-plug
+          - entity: sensor.leaf_cabin_temperature
+            name: Utastér
+            icon: mdi:thermometer
+
+  # --- Fő gombok -------------------------------------------------------------
+  - type: grid
+    columns: 4
+    square: false
+    cards:
+      - type: tile
+        entity: switch.leaf_a_c
+        name: Klíma
+        icon: mdi:air-conditioner
+        vertical: true
+        hide_state: true
+        tap_action:
+          action: toggle
+      - type: tile
+        entity: button.charge_start_for_leaf
+        name: Töltés
+        icon: mdi:ev-station
+        vertical: true
+        hide_state: true
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.charge_start_for_leaf
+      - type: tile
+        entity: button.charge_start_80_for_leaf
+        name: Töltés 80%
+        icon: mdi:battery-charging-80
+        vertical: true
+        hide_state: true
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.charge_start_80_for_leaf
+      - type: tile
+        entity: button.lock_doors_for_leaf
+        name: Zárás
+        icon: mdi:lock
+        vertical: true
+        hide_state: true
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.lock_doors_for_leaf
+      - type: tile
+        entity: button.unlock_doors_for_leaf
+        name: Nyitás
+        icon: mdi:lock-open-variant
+        color: orange
+        vertical: true
+        hide_state: true
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.unlock_doors_for_leaf
+          confirmation:
+            text: Biztosan kinyitod az autót?
+      - type: tile
+        entity: button.horn_lights_for_leaf
+        name: Duda + fény
+        icon: mdi:alarm-light
+        vertical: true
+        hide_state: true
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.horn_lights_for_leaf
+          confirmation:
+            text: Dudáljon és villogjon az autó?
+      - type: tile
+        entity: device_tracker.leaf_tracker
+        name: Helyzet
+        icon: mdi:map-marker
+        vertical: true
+        hide_state: true
+        tap_action:
+          action: more-info
+      - type: tile
+        entity: button.request_data_refresh_for_leaf
+        name: Frissítés
+        icon: mdi:refresh
+        vertical: true
+        hide_state: true
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.request_data_refresh_for_leaf
+
+  # --- Részletek -------------------------------------------------------------
+  - type: entities
+    title: Részletek
+    show_header_toggle: false
+    entities:
+      - entity: sensor.leaf_charging
+        name: Tölt
+      - entity: sensor.leaf_6_6_kw_charge_time
+        name: Teljes töltés 6,6 kW
+      - entity: sensor.leaf_3_kw_240_v_charge_time
+        name: Teljes töltés 3 kW
+      - entity: sensor.leaf_state_of_health
+        name: Akku állapot (SOH)
+      - entity: sensor.leaf_capacity_bars
+        name: Kapacitás csíkok
+      - entity: sensor.leaf_odometer
+        name: Km-óra
+      - entity: sensor.leaf_last_updated
+        name: Autó adata
+      - type: buttons
+        entities:
+          - entity: button.horn_for_leaf
+            name: Duda
+            icon: mdi:bullhorn
+            tap_action:
+              action: perform-action
+              perform_action: button.press
+              target:
+                entity_id: button.horn_for_leaf
+          - entity: button.lights_for_leaf
+            name: Fények
+            icon: mdi:car-light-high
+            tap_action:
+              action: perform-action
+              perform_action: button.press
+              target:
+                entity_id: button.lights_for_leaf
+          - entity: button.stop_horn_lights_for_leaf
+            name: Stop
+            icon: mdi:stop-circle
+            tap_action:
+              action: perform-action
+              perform_action: button.press
+              target:
+                entity_id: button.stop_horn_lights_for_leaf
+
+  # --- Térkép (opcionális, törölhető) ----------------------------------------
+  - type: map
+    entities:
+      - device_tracker.leaf_tracker
+    default_zoom: 15
+    aspect_ratio: "16:7"
