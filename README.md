@@ -2,7 +2,10 @@
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 
-Lovelace kártya a [ha_opencarwings](https://github.com/czapeczek/ha_opencarwings) integrációhoz (Nissan LEAF / e-NV200).
+Lovelace kártya OpenCARWINGS integrációkhoz (Nissan LEAF / e-NV200). Támogatott integrációk:
+
+- [drrcastro/OCW](https://github.com/drrcastro/OCW) – „OpenCarWings” (`ocw_integration`)
+- [czapeczek/ha_opencarwings](https://github.com/czapeczek/ha_opencarwings) – „OpenCARWINGS Integration” (`ha_opencarwings`)
 Egy kártyán minden fontos dolog: töltöttség, hatótáv, töltés, klíma, zárás/nyitás, duda/fény, helyzet és frissítés.
 
 *Lovelace card for the ha_opencarwings integration. Hungarian and English UI (follows the HA language).*
@@ -18,7 +21,7 @@ Egy kártyán minden fontos dolog: töltöttség, hatótáv, töltés, klíma, z
 - Töltőkábel állapota és a becsült teljes töltési idő
 - **Gombok:** Klíma (be/ki), Töltés, Töltés 80%, Zárás, Nyitás, Duda + fény, Helyzet, Frissítés
 - **További funkciók** (lenyitható): Duda, Fények, Duda/fény stop, Távindítás, Távleállítás
-- **Részletek:** SOH, akku csíkok, GIDs, kWh, töltési idők, Eco mód, akkufűtés, utolsó parancs, frissítés ideje
+- **Részletek:** SOH, akku csíkok, GIDs, kWh, töltési idők, Eco mód, akkufűtés, guminyomás, hibakódok (DTC), szerviz figyelmeztetés, térerő, frissítés ideje
 - Kockázatos parancsok (Nyitás, Duda) **dupla érintéssel** mennek, így nem nyomod meg véletlenül
 - Opcionális térkép az autó helyzetével
 - Világos és sötét téma, mobilon is jól mutat, vizuális szerkesztő

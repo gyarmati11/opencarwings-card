@@ -3,8 +3,9 @@
  * https://github.com/czapeczek/ha_opencarwings
  * License: MIT
  */
-const CARD_VERSION = "1.1.0";
-const DOMAIN = "ha_opencarwings";
+(() => {
+
+const CARD_VERSION = "1.2.0";
 
 /* ------------------------------------------------------------------ */
 /* i18n                                                                */
@@ -53,6 +54,14 @@ const STRINGS = {
     eco: "Eco mód",
     heater: "Akkufűtés",
     energy: "Akku energia",
+    power: "Töltőáram elérhető",
+    interrupted: "Töltés megszakadt",
+    tyres: "Guminyomás",
+    tyre_pos: ["BE", "JE", "BH", "JH"],
+    tpms_light: "Guminyomás figyelmeztetés",
+    maint: "Szerviz figyelmeztetés",
+    dtc: "Hibakódok (DTC)",
+    signal: "Térerő",
     last_cmd: "Utolsó parancs",
     updated: "Autó adata",
     requested: "Lekérdezve",
@@ -128,6 +137,14 @@ const STRINGS = {
     eco: "Eco mode",
     heater: "Battery heater",
     energy: "Battery energy",
+    power: "Power available",
+    interrupted: "Charging interrupted",
+    tyres: "Tyre pressure",
+    tyre_pos: ["FL", "FR", "RL", "RR"],
+    tpms_light: "TPMS warning",
+    maint: "Maintenance alert",
+    dtc: "Trouble codes (DTC)",
+    signal: "Signal level",
     last_cmd: "Last command",
     updated: "Car data",
     requested: "Requested",
@@ -165,45 +182,82 @@ const STRINGS = {
 /* Entity discovery                                                    */
 /* ------------------------------------------------------------------ */
 
-// unique_id: ha_opencarwings_<key>_<VIN>  →  "<domain>:<key>"
-const UID_PREFIX = "ha_opencarwings_";
+// Supported integrations:
+//   czapeczek/ha_opencarwings  (domain ha_opencarwings, unique_id ha_opencarwings_<key>_<VIN>)
+//   drrcastro/OCW              (domain ocw_integration, unique_id ocw_integration_<key>_<VIN>)
+const DOMAINS = ["ha_opencarwings", "ocw_integration"];
+const UID_PREFIXES = DOMAINS.map((d) => `${d}_`);
 
-// Fallback: match on entity object_id (used if the registry can't be read)
+// Different key names between the integrations → one canonical name
+const KEY_ALIAS = {
+  car_door_lock: "car_doorlock",
+  car_door_unlock: "car_doorunlock",
+  cap_bars: "capacity_bars",
+  dtc: "dtc",
+};
+
+// Fallback: match on entity object_id (used if the registry can't be read).
+// `(_\d+)?$` tolerates HA's duplicate suffixes like _2.
+const E = (name) => new RegExp(`(?:^|_)${name}(?:_\\d+)?$`);
 const FALLBACK = {
   sensor: [
-    [/state_of_charge_display$/, "soc_display"],
-    [/state_of_charge$/, "soc"],
-    [/state_of_health$/, "soh"],
-    [/range_a_c_on$/, "range_acon"],
-    [/range_a_c_off$/, "range_acoff"],
-    [/charge_cable$/, "plugged_in"],
-    [/quick_charging$/, "quick_charging"],
-    [/charge_finish$/, "charge_finish"],
-    [/charge_bars$/, "charge_bars"],
-    [/capacity_bars$/, "capacity_bars"],
-    [/maximum_gids_when_battery_is_new$/, "max_gids"],
-    [/gids$/, "gids"],
-    [/charging$/, "charging"],
-    [/ac_status$/, "ac_status"],
-    [/eco_mode$/, "eco_mode"],
-    [/last_requested_command$/, "last_requested_command"],
-    [/last_requested$/, "last_requested"],
-    [/last_updated$/, "last_updated"],
-    [/running$/, "car_running"],
-    [/odometer$/, "odometer"],
-    [/3_kw_240_v_charge_time$/, "full_chg_time"],
-    [/1_kw_120_v_charge_time$/, "limit_chg_time"],
-    [/6_6_kw_charge_time$/, "obc_6kw"],
-    [/6_6_kw_obc_exists$/, "obc_6kw_avail"],
-    [/battery_heater_exists$/, "batt_heater_avail"],
-    [/battery_heater_active$/, "batt_heater_status"],
-    [/battery_wh_content$/, "wh_content"],
-    [/cabin_temperature$/, "cabin_temp"],
-    [/vehicle_health_report$/, "veh_health_report"],
-    [/_vin$/, "vin"],
-    [/status$/, "status"],
+    [E("state_of_charge_display"), "soc_display"],
+    [E("forced_soc_display"), "force_soc_display"],
+    [E("state_of_charge"), "soc"],
+    [E("state_of_health"), "soh"],
+    [E("battery_health"), "soh"],
+    [E("range_a_c_on"), "range_acon"],
+    [E("range_a_c_off"), "range_acoff"],
+    [E("charge_cable"), "plugged_in"],
+    [E("quick_charging"), "quick_charging"],
+    [E("charge_finish"), "charge_finish"],
+    [E("charge_bars"), "charge_bars"],
+    [E("capacity_bars"), "capacity_bars"],
+    [E("maximum_gids_when_battery_is_new"), "max_gids"],
+    [E("maximum_gids"), "max_gids"],
+    [E("gids"), "gids"],
+    [E("charging"), "charging"],
+    [E("ac_status"), "ac_status"],
+    [E("eco_mode"), "eco_mode"],
+    [E("last_requested_command"), "last_requested_command"],
+    [E("last_requested"), "last_requested"],
+    [E("last_updated"), "last_updated"],
+    [E("running"), "car_running"],
+    [E("health_report_mileage"), "health_mileage"],
+    [E("odometer"), "odometer"],
+    [E("3_kw_240_v_charge_time"), "full_chg_time"],
+    [E("full_charge_time"), "full_chg_time"],
+    [E("1_kw_120_v_charge_time"), "limit_chg_time"],
+    [E("limit_charge_time"), "limit_chg_time"],
+    [E("6_6_kw_obc_exists"), "obc_6kw_avail"],
+    [E("obc_6kw_available"), "obc_6kw_avail"],
+    [E("6_6_kw_charge_time"), "obc_6kw"],
+    [E("obc_6kw"), "obc_6kw"],
+    [E("battery_heater_exists"), "batt_heater_avail"],
+    [E("battery_heater_available"), "batt_heater_avail"],
+    [E("battery_heater_active"), "batt_heater_status"],
+    [E("battery_wh_content"), "wh_content"],
+    [E("remaining_energy"), "wh_content"],
+    [E("cabin_temperature"), "cabin_temp"],
+    [E("tyre_pressure_front_left"), "tpms_fl"],
+    [E("tyre_pressure_front_right"), "tpms_fr"],
+    [E("tyre_pressure_rear_left"), "tpms_rl"],
+    [E("tyre_pressure_rear_right"), "tpms_rr"],
+    [E("tpms_warning"), "tpms_light"],
+    [E("maintenance_alert"), "maintenance_alert"],
+    [E("signal_level"), "signal_level"],
+    [E("dtcs"), "dtc"],
+    [E("gear"), "car_gear"],
+    [E("vehicle_health_report"), "veh_health_report"],
+    [E("vin"), "vin"],
+    [E("status"), "status"],
+  ],
+  binary_sensor: [
+    [E("power_available"), "power_available"],
+    [E("charging_interrupted"), "charging_interrupted"],
   ],
   button: [
+    // czapeczek/ha_opencarwings names
     [/^stop_horn_lights_for_/, "car_stop_horn_lights"],
     [/^horn_lights_for_/, "car_horn_lights"],
     [/^horn_for_/, "car_horn"],
@@ -212,9 +266,23 @@ const FALLBACK = {
     [/^charge_start_for_/, "car_chargestart"],
     [/^unlock_doors_for_/, "car_doorunlock"],
     [/^lock_doors_for_/, "car_doorlock"],
-    [/^request_data_refresh_for_/, "car_refresh"],
     [/^remote_start_for_/, "car_remote_start"],
     [/^remote_stop_for_/, "car_remote_stop"],
+    // drrcastro/OCW names
+    [E("horn_lights_off"), "car_stop_horn_lights"],
+    [E("horn_lights_on"), "car_horn_lights"],
+    [E("horn_on"), "car_horn"],
+    [E("lights_on"), "car_lights"],
+    [E("start_charge_untill_80"), "car_chargestart80"],
+    [E("charge_start"), "car_chargestart"],
+    [E("door_unlock"), "car_doorunlock"],
+    [E("door_lock"), "car_doorlock"],
+    [E("remote_start"), "car_remote_start"],
+    [E("remote_stop"), "car_remote_stop"],
+    [/^a_c_on_for_/, "car_ac_on"],
+    [/^a_c_off_for_/, "car_ac_off"],
+    // both
+    [/request_data_refresh/, "car_refresh"],
     [/opencarwings_refresh/, "refresh"],
   ],
   switch: [[/./, "ac"]],
@@ -222,14 +290,15 @@ const FALLBACK = {
 };
 
 function keyFromUniqueId(domain, uid) {
-  if (!uid || !uid.startsWith(UID_PREFIX)) return null;
-  const rest = uid.slice(UID_PREFIX.length);
+  const prefix = uid && UID_PREFIXES.find((p) => uid.startsWith(p));
+  if (!prefix) return null;
+  const rest = uid.slice(prefix.length);
   if (domain === "sensor" && rest.endsWith("_cars")) return "cars";
+  if (domain === "device_tracker") return "tracker";
   const idx = rest.lastIndexOf("_");
   if (idx <= 0) return null;
   const key = rest.slice(0, idx);
-  if (domain === "device_tracker") return "tracker";
-  return key;
+  return KEY_ALIAS[key] || key;
 }
 
 function keyFromEntityId(entityId) {
@@ -344,7 +413,7 @@ class OpenCarwingsCard extends HTMLElement {
     const L = STRINGS[lang].editor;
     return {
       schema: [
-        { name: "device_id", selector: { device: { integration: DOMAIN } } },
+        { name: "device_id", selector: { device: { filter: DOMAINS.map((integration) => ({ integration })) } } },
         { name: "name", selector: { text: {} } },
         {
           type: "expandable",
@@ -412,7 +481,7 @@ class OpenCarwingsCard extends HTMLElement {
     try {
       const list = await this._hass.callWS({ type: "config/entity_registry/list" });
       this._uidMap = {};
-      for (const e of list) if (e.platform === DOMAIN) this._uidMap[e.entity_id] = e.unique_id;
+      for (const e of list) if (DOMAINS.includes(e.platform)) this._uidMap[e.entity_id] = e.unique_id;
     } catch (e) {
       this._uidMap = {};
     }
@@ -425,7 +494,7 @@ class OpenCarwingsCard extends HTMLElement {
   _discover() {
     const hass = this._hass;
     const reg = hass.entities || {};
-    const all = Object.values(reg).filter((e) => e.platform === DOMAIN);
+    const all = Object.values(reg).filter((e) => DOMAINS.includes(e.platform));
     const byDevice = {};
     let globalRefresh = null;
 
@@ -483,8 +552,27 @@ class OpenCarwingsCard extends HTMLElement {
     return id ? this._hass.states[id] : undefined;
   }
   _val(key) {
-    const s = this._st(key);
+    let s = this._st(key);
+    // some values are binary_sensors in one integration and sensors in the other
+    if (!s && key.startsWith("sensor:")) s = this._st(`binary_sensor:${key.slice(7)}`);
     return s && !BAD.includes(s.state) ? s.state : null;
+  }
+  _unit(key) {
+    return this._st(key)?.attributes?.unit_of_measurement || "";
+  }
+  /* Charge time → seconds (ha_opencarwings: s, OCW: min) */
+  _dur(key) {
+    const v = Number(this._val(key));
+    if (!isFinite(v)) return null;
+    const u = this._unit(key).toLowerCase();
+    const sec = u === "min" ? v * 60 : u === "h" ? v * 3600 : v;
+    return fmtDuration(sec, this._lang);
+  }
+  /* Battery energy → kWh (ha_opencarwings: Wh, OCW: kWh) */
+  _kwh(key) {
+    const v = Number(this._val(key));
+    if (!isFinite(v)) return null;
+    return this._unit(key) === "kWh" ? v : v / 1000;
   }
 
   _signature() {
@@ -546,7 +634,8 @@ class OpenCarwingsCard extends HTMLElement {
     const odo = this._val("sensor:odometer");
     const plugged = isTrue(this._val("sensor:plugged_in"));
     const charging = isTrue(this._val("sensor:charging")) || isTrue(this._val("sensor:quick_charging"));
-    const acOn = isTrue(this._val("sensor:ac_status"));
+    const acSw = this._val("switch:ac");
+    const acOn = isTrue(this._val("sensor:ac_status")) || acSw === "on";
     let status = this._val("sensor:status") || "unknown";
     if (status === "idle" && plugged) status = "plugged";
     const busy = status === "running_command";
@@ -593,8 +682,8 @@ class OpenCarwingsCard extends HTMLElement {
     ].join("");
 
     // charge line
-    const tFull = fmtDuration(this._val("sensor:full_chg_time"), lang);
-    const t6 = fmtDuration(this._val("sensor:obc_6kw"), lang);
+    const tFull = this._dur("sensor:full_chg_time");
+    const t6 = this._dur("sensor:obc_6kw");
     const chargeLine = `
       <div class="chargeline ${charging ? "on" : plugged ? "plug" : ""}">
         <ha-icon icon="${charging ? "mdi:battery-charging" : plugged ? "mdi:power-plug" : "mdi:power-plug-off"}"></ha-icon>
@@ -633,7 +722,12 @@ class OpenCarwingsCard extends HTMLElement {
       if (!isFinite(v)) return null;
       return `<span class="bars">${Array.from({ length: max }, (_, i) => `<i class="${i < v ? "f" : ""}"></i>`).join("")}</span>`;
     };
-    const wh = this._val("sensor:wh_content");
+    const kwh = this._kwh("sensor:wh_content");
+    const tyres = ["fl", "fr", "rl", "rr"].map((k) => this._val(`sensor:tpms_${k}`));
+    const tyreTxt = tyres.some((v) => v != null)
+      ? `<span class="tyres">${tyres.map((v, i) => `<b title="${esc(t.tyre_pos[i])}">${esc(t.tyre_pos[i])} ${v == null ? "—" : fmtNum(this._unit("sensor:tpms_fl").toLowerCase() === "bar" ? Number(v) : Number(v) / 100, lang, 1)}</b>`).join("")}</span> bar`
+      : null;
+    const dtc = this._val("sensor:dtc");
     const details = [
       row(t.soh, pctTxt("sensor:soh")),
       row(t.soc_display, pctTxt("sensor:soc_display")),
@@ -641,12 +735,20 @@ class OpenCarwingsCard extends HTMLElement {
       row(t.cap_bars, bars(capBars)),
       row(t.gids, this._val("sensor:gids") != null
         ? `${esc(this._val("sensor:gids"))}${this._val("sensor:max_gids") ? ` / ${esc(this._val("sensor:max_gids"))}` : ""}` : null),
-      row(t.energy, wh != null ? `${fmtNum(Number(wh) / 1000, lang, 1)} kWh` : null),
-      row(t.t3, fmtDuration(this._val("sensor:full_chg_time"), lang)),
-      row(t.t6, fmtDuration(this._val("sensor:obc_6kw"), lang)),
-      row(t.t1, fmtDuration(this._val("sensor:limit_chg_time"), lang)),
+      row(t.energy, kwh != null ? `${fmtNum(kwh, lang, 1)} kWh` : null),
+      row(t.t3, this._dur("sensor:full_chg_time")),
+      row(t.t6, this._dur("sensor:obc_6kw")),
+      row(t.t1, this._dur("sensor:limit_chg_time")),
       row(t.eco, boolTxt("sensor:eco_mode")),
       row(t.heater, boolTxt("sensor:batt_heater_status")),
+      row(t.power, boolTxt("sensor:power_available")),
+      row(t.interrupted, this._val("sensor:charging_interrupted") == null ? null
+        : isTrue(this._val("sensor:charging_interrupted")) ? `<span class="warn">${esc(t.yes)}</span>` : esc(t.no)),
+      row(t.tyres, tyreTxt),
+      row(t.tpms_light, boolTxt("sensor:tpms_light")),
+      row(t.maint, boolTxt("sensor:maintenance_alert")),
+      row(t.dtc, dtc == null ? null : Number(dtc) > 0 ? `<span class="warn">${esc(dtc)}</span>` : "0"),
+      row(t.signal, this._val("sensor:signal_level") != null ? esc(this._val("sensor:signal_level")) : null),
       row(t.last_cmd, this._val("sensor:last_requested_command") != null ? esc(this._val("sensor:last_requested_command")) : null),
       row(t.updated, updated ? esc(updated) : null),
       row(t.requested, fmtRelative(this._val("sensor:last_requested"), lang)),
@@ -814,7 +916,7 @@ class OpenCarwingsCard extends HTMLElement {
     let domain, service;
     if (a.id === "climate") {
       domain = "switch";
-      service = isTrue(this._val("sensor:ac_status")) ? "turn_off" : "turn_on";
+      service = isTrue(this._val("sensor:ac_status")) || this._val("switch:ac") === "on" ? "turn_off" : "turn_on";
     } else {
       domain = "button";
       service = "press";
@@ -973,6 +1075,9 @@ ha-icon { --mdc-icon-size: 20px; display: inline-flex; }
   border-bottom: 1px dashed var(--divider-color, rgba(127,127,127,.2)); color: var(--ocw-muted); }
 .drow:last-child { border-bottom: 0; }
 .drow span:last-child { color: var(--ocw-text); font-weight: 500; text-align: right; }
+.warn { color: var(--error-color, #db4437); font-weight: 700; }
+.tyres { display: inline-flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.tyres b { font-weight: 500; white-space: nowrap; }
 .bars { display: inline-flex; gap: 2px; vertical-align: middle; }
 .bars i { width: 6px; height: 12px; border-radius: 2px; background: var(--ocw-tile-hover); }
 .bars i.f { background: var(--ocw-green); }
@@ -988,7 +1093,7 @@ ha-icon { --mdc-icon-size: 20px; display: inline-flex; }
 }
 `;
 
-customElements.define("opencarwings-card", OpenCarwingsCard);
+if (!customElements.get("opencarwings-card")) customElements.define("opencarwings-card", OpenCarwingsCard);
 
 window.customCards = window.customCards || [];
 window.customCards.push({
@@ -1000,3 +1105,4 @@ window.customCards.push({
 });
 
 console.info(`%c OPENCARWINGS-CARD %c v${CARD_VERSION} `, "color:#fff;background:#03a9f4;font-weight:700", "color:#03a9f4");
+})();
