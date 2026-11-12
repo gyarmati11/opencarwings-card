@@ -63,6 +63,7 @@ Ennyi elég, a kártya magától megtalálja az autót. Minden beállítás:
 type: custom:opencarwings-card
 device_id: 0123456789abcdef      # ha több autód van (vagy: vin: SJNFAAZE0U1234567)
 name: Kis Leaf                  # saját név
+soc_source: display             # display = műszerfal szerinti % (alap), nominal = névleges %
 image: /local/leaf.png          # egyetlen saját kép (vagy lásd lent: images)
 show_map: true                  # térkép a kártya alján
 show_details: false             # részletek alapból nyitva

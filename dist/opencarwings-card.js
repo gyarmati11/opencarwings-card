@@ -5,7 +5,7 @@
  */
 (() => {
 
-const CARD_VERSION = "1.2.0";
+const CARD_VERSION = "1.2.1";
 
 /* ------------------------------------------------------------------ */
 /* i18n                                                                */
@@ -48,6 +48,7 @@ const STRINGS = {
     charge_done: "Töltés vége",
     soh: "Akku állapot (SOH)",
     soc_display: "Töltöttség (kijelző)",
+    soc_nominal: "Töltöttség (névleges)",
     gids: "GIDs",
     cap_bars: "Kapacitás csíkok",
     charge_bars: "Töltöttség csíkok",
@@ -82,6 +83,9 @@ const STRINGS = {
     ago: "",
     editor: {
       device_id: "Autó (eszköz)",
+      soc_source: "Töltöttség forrása",
+      soc_src_display: "Kijelző (mint az autó műszerfalán)",
+      soc_src_nominal: "Névleges",
       name: "Megjelenített név (opcionális)",
       image: "Saját autókép URL (opcionális)",
       images: "Autóképek (opcionális)",
@@ -131,6 +135,7 @@ const STRINGS = {
     charge_done: "Charge finished",
     soh: "Battery health (SOH)",
     soc_display: "Charge (display)",
+    soc_nominal: "Charge (nominal)",
     gids: "GIDs",
     cap_bars: "Capacity bars",
     charge_bars: "Charge bars",
@@ -164,6 +169,9 @@ const STRINGS = {
     no: "No",
     editor: {
       device_id: "Car (device)",
+      soc_source: "Battery % source",
+      soc_src_display: "Display (as on the dashboard)",
+      soc_src_nominal: "Nominal",
       name: "Display name (optional)",
       image: "Custom car image URL (optional)",
       images: "Car images (optional)",
@@ -414,6 +422,13 @@ class OpenCarwingsCard extends HTMLElement {
     return {
       schema: [
         { name: "device_id", selector: { device: { filter: DOMAINS.map((integration) => ({ integration })) } } },
+        {
+          name: "soc_source",
+          selector: { select: { mode: "dropdown", options: [
+            { value: "display", label: L.soc_src_display },
+            { value: "nominal", label: L.soc_src_nominal },
+          ] } },
+        },
         { name: "name", selector: { text: {} } },
         {
           type: "expandable",
@@ -627,7 +642,12 @@ class OpenCarwingsCard extends HTMLElement {
     const model = dev?.model || "";
 
     // values
-    const soc = this._val("sensor:soc") != null ? Number(this._val("sensor:soc")) : null;
+    // Big ring shows the dashboard ("Display") value by default; soc_source: nominal switches it
+    const socDisp = this._val("sensor:soc_display");
+    const socNom = this._val("sensor:soc");
+    const useNominal = this._config.soc_source === "nominal";
+    const socRaw = useNominal ? socNom ?? socDisp : socDisp ?? socNom;
+    const soc = socRaw != null ? Number(socRaw) : null;
     const rangeOff = this._val("sensor:range_acoff");
     const rangeOn = this._val("sensor:range_acon");
     const cabin = this._val("sensor:cabin_temp");
@@ -730,7 +750,7 @@ class OpenCarwingsCard extends HTMLElement {
     const dtc = this._val("sensor:dtc");
     const details = [
       row(t.soh, pctTxt("sensor:soh")),
-      row(t.soc_display, pctTxt("sensor:soc_display")),
+      row(useNominal ? t.soc_display : t.soc_nominal, pctTxt(useNominal ? "sensor:soc_display" : "sensor:soc")),
       row(t.charge_bars, bars(chgBars)),
       row(t.cap_bars, bars(capBars)),
       row(t.gids, this._val("sensor:gids") != null
